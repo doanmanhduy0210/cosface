@@ -2,7 +2,7 @@
 out_dir = ''
 root_dir = '/mnt/cd4dcd96-78d7-474d-964f-304a16dbe014/duydm/codeGithub/facerec/data/lfw_112'
 # training
-epochs  = 5
+epochs  = 100
 # data 
 input_size = [112,112]
 data_dir = '/mnt/cd4dcd96-78d7-474d-964f-304a16dbe014/duydm/codeGithub/facerec/data/CASIA-WebFace_160'
@@ -21,7 +21,7 @@ features_dim = 512
 # optimizer 
 optimizer_type = 'sgd_bn'
 lr = 0.1
-lr_schedule_steps = [30, 55, 75]
+lr_schedule_steps = [15, 30, 55,75,100]
 lr_gamma = 0.1
 beta1 = 0.05
 weight_decay = 0.005
@@ -52,7 +52,7 @@ cfp_ff_dir = '/mnt/cd4dcd96-78d7-474d-964f-304a16dbe014/duydm/codeGithub/facerec
 cfp_fp_dir = '/mnt/cd4dcd96-78d7-474d-964f-304a16dbe014/duydm/codeGithub/data/cfp_112'
 
 evaluate_subtract_mean = False
-evaluate_batch_size = 100
+evaluate_batch_size = 32
 evaluate_nrof_folds = 10
 
 
