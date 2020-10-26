@@ -92,6 +92,7 @@ def evaluate_forward_pass(model, lfw_loader, lfw_dataset, embedding_size, device
     
     return tpr, fpr, accuracy, val, val_std, far
 
+
 #-------------------------------------------------------------
 # LFW
 def get_paths_issame_LFW(lfw_dir):

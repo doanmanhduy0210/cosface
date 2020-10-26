@@ -1,17 +1,19 @@
 # out 
 out_dir = ''
-root_dir = '/mnt/cd4dcd96-78d7-474d-964f-304a16dbe014/duydm/codeGithub/facerec/data/lfw_112'
+root_dir = '/home/minglee/Documents/aiProjects/facerec/data/lfw_112'
 # training
-epochs  = 100
+epochs  = 5
 # data 
 input_size = [112,112]
-data_dir = '/mnt/cd4dcd96-78d7-474d-964f-304a16dbe014/duydm/codeGithub/facerec/data/CASIA-WebFace_160'
+data_dir = '/home/minglee/Documents/aiProjects/facerec/data/CASIA-WebFace_160'
 num_workers = 8
 batch_size =  32 
 
-batch_size_test = 512 
-evaluate_batch_size = 128
-validation_set_split_ratio = 0.01
+
+batch_size_test = 32
+evaluate_batch_size = 32
+validation_set_split_ratio = 0.05
+evaluate_set_split_ratio   = 0.2
 min_nrof_val_images_per_class = 0
 # model 
 model_path = None
@@ -21,7 +23,7 @@ features_dim = 512
 # optimizer 
 optimizer_type = 'sgd_bn'
 lr = 0.1
-lr_schedule_steps = [15, 30, 55,75,100]
+lr_schedule_steps = [30, 55, 75]
 lr_gamma = 0.1
 beta1 = 0.05
 weight_decay = 0.005
@@ -46,13 +48,13 @@ evaluate_interval = 1
 validations = ['LFW', 'CALFW', 'CPLFW', 'CFP_FF', 'CFP_FP']
 lfw_dir = '/home/minglee/Documents/aiProjects/facerec/data/lfw_112'
 # '/home/minglee/Documents/aiProjects/facerec/data/__MACOSX/lfw_112/._pairs_LFW.txt'
-calfw_dir = '/mnt/cd4dcd96-78d7-474d-964f-304a16dbe014/duydm/codeGithub/facerec/data/calfw_112'
-cplfw_dir = '/mnt/cd4dcd96-78d7-474d-964f-304a16dbe014/duydm/codeGithub/facerec/data/cplfw_112'
-cfp_ff_dir = '/mnt/cd4dcd96-78d7-474d-964f-304a16dbe014/duydm/codeGithub/facerec/data/cfp_112'
-cfp_fp_dir = '/mnt/cd4dcd96-78d7-474d-964f-304a16dbe014/duydm/codeGithub/data/cfp_112'
+calfw_dir = '/home/minglee/Documents/aiProjects/facerec/data/calfw_112'
+cplfw_dir = '/home/minglee/Documents/aiProjects/facerec/data/cplfw_112'
+cfp_ff_dir = '/home/minglee/Documents/aiProjects/facerec/data/cfp_112'
+cfp_fp_dir = '/home/minglee/Documents/aiProjects/facerec/data/cfp_112'
 
 evaluate_subtract_mean = False
-evaluate_batch_size = 32
+evaluate_batch_size = 100
 evaluate_nrof_folds = 10
 
 

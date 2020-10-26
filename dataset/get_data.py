@@ -58,20 +58,29 @@ def get_data(ARGS, device):
                                                 shuffle=True, num_workers=ARGS.num_workers)
         return trainloader, None
 
-    train_set, val_set = split_dataset(dataset, ARGS.validation_set_split_ratio, ARGS.min_nrof_val_images_per_class, 'SPLIT_IMAGES')
+    train_data, evaluate_set = split_dataset(dataset, ARGS.evaluate_set_split_ratio, ARGS.min_nrof_val_images_per_class, 'SPLIT_IMAGES')
     
+    train_set, val_set       =  split_dataset(train_data, ARGS.validation_set_split_ratio, ARGS.min_nrof_val_images_per_class, 'SPLIT_IMAGES')
+
     train_image_list, train_label_list, _ = get_image_paths_and_labels(train_set)
+    print('len of labels training ' + str(len(train_label_list)))
     val_image_list, val_label_list, _ = get_image_paths_and_labels(val_set)
+    print('len of labels testing ' + str(len(val_label_list)))
+    eva_image_list, eva_label_list, _ = get_image_paths_and_labels(evaluate_set)
+    print('len of labels evaluating ' + str(len(eva_label_list)))
 
     train_faces_dataset = FacesDataset(train_image_list, train_label_list, len(train_set), ARGS.input_size)
-    test_faces_dataset = FacesDataset(val_image_list, val_label_list, len(val_set), ARGS.input_size)
+    test_faces_dataset  = FacesDataset(val_image_list, val_label_list, len(val_set), ARGS.input_size)
+    eval_faces_dataset  = FacesDataset(eva_image_list, eva_label_list, len(evaluate_set), ARGS.input_size)
 
     trainloader = data.DataLoader(train_faces_dataset, batch_size=ARGS.batch_size,
                                                 shuffle=True, num_workers=ARGS.num_workers)
     testloader = data.DataLoader(test_faces_dataset, batch_size=ARGS.batch_size_test,
                                                 shuffle=False, num_workers=ARGS.num_workers)
+    evaluateloader = data.DataLoader(eval_faces_dataset, batch_size= ARGS.evaluate_batch_size, 
+                                                shuffle=True, num_workers = ARGS.num_workers)
     
-    return trainloader, testloader
+    return trainloader, testloader, evaluateloader
 
 
 # if __name__ == '__main__':

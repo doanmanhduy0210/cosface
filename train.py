@@ -35,25 +35,7 @@ except ModuleNotFoundError:
     APEX_AVAILABLE = False
 
 
-'''
-EXAMPLE:
-python3 train.py \
---model_type IR_50 \
---data_dir ./data/CASIA_Webface_160 \
---batch_size 128 \
---batch_size_test 128 \
---evaluate_batch_size 128 \
---criterion_type arcface \
---total_loss_type softmax \
---optimizer_type sgd_bn \
---margin_s 32.0 \
---margin_m 0.5 \
---validation_set_split_ratio 0.0 \
---lr 0.1 \
---lr_schedule_steps 30 55 75 \
---apex_opt_level 2 
 
-'''
 
 
 def train( model, device, train_loader, total_loss, loss_criterion, optimizer, log_file_path, model_dir, logger, epoch):
@@ -71,9 +53,6 @@ def train( model, device, train_loader, total_loss, loss_criterion, optimizer, l
         if confi.criterion_type == 'arcface':
             logits = loss_criterion(features, target)
             loss = total_loss(logits, target)
-        # elif confi.criterion_type == 'arcface2':
-        #     logits = loss_criterion(features, target)
-        #     loss = total_loss(logits, target)
         elif confi.criterion_type == 'cosface':
             logits, mlogits = loss_criterion(features, target)
             loss = total_loss(mlogits, target)
@@ -172,35 +151,50 @@ def test( model, device, test_loader, total_loss, loss_criterion, log_file_path,
         print_and_log(log_file_path, 'Total time for test: {}'.format(timedelta(seconds=time_for_test)))
 
 
-def evaluate( validation_data_dic, model, device, log_file_path, logger, distance_metric, epoch):
+def evaluate( model, device, evaluate_loader, total_loss, loss_criterion,log_file_path, logger, epoch):
     if epoch % confi.evaluate_interval == 0 or epoch == confi.epochs:
-
+        correct = 0
         embedding_size = confi.features_dim
+        print('\n\n evaluate processing ........')
+        t = time.time()
+        model.eval()
+        with torch.no_grad():
+            for dataset, target in evaluate_loader:
+                dataset, target = dataset.to(device), target.to(device)
+                feats = model(dataset)
 
-        for val_type in confi.validations:
-            dataset = validation_data_dic[val_type+'_dataset']
-            loader = validation_data_dic[val_type+'_loader']
+                if confi.criterion_type == 'arcface':
+                    logits = loss_criterion(feats, target)
+                    outputs = logits
+                elif confi.criterion_type == 'cosface':
+                    logits, _ = loss_criterion(feats, target)
+                    outputs = logits
+                elif confi.criterion_type == 'combined':
+                    logits = loss_criterion(feats, target)
+                    outputs = logits
+                elif confi.criterion_type == 'centerloss':
+                    _, outputs = loss_criterion(feats, target)
 
-            model.eval()
-            t = time.time()
-            print('\n\nRunnning forward pass on {} images'.format(val_type))
+                _, predicted = torch.max(outputs.data, 1)
+                correct += (predicted == target.data).sum()
 
-            tpr, fpr, accuracy, val, val_std, far = evaluate_forward_pass(model, 
-                                                                        loader, 
-                                                                        dataset, 
-                                                                        embedding_size, 
-                                                                        device,
-                                                                        lfw_nrof_folds=confi.evaluate_nrof_folds, 
-                                                                        distance_metric=distance_metric, 
-                                                                        subtract_mean=confi.evaluate_subtract_mean)
+            
+                # tpr, fpr, accuracy, val, val_std, far = evaluate_forward_pass(model, 
+                #                                                             loader, 
+                #                                                             dataset, 
+                #                                                             embedding_size, 
+                #                                                             device,
+                #                                                             lfw_nrof_folds=confi.evaluate_nrof_folds, 
+                #                                                             distance_metric=distance_metric, 
+                #                                                             subtract_mean=confi.evaluate_subtract_mean)
 
-
+            accuracy = 100. * correct / len(evaluate_loader.dataset)
             print_and_log(log_file_path, '\nEpoch: '+str(epoch))
             print_and_log(log_file_path, 'Accuracy: %2.5f+-%2.5f' % (np.mean(accuracy), np.std(accuracy)))
-            print_and_log(log_file_path, 'Validation rate: %2.5f+-%2.5f @ FAR=%2.5f' % (val, val_std, far))
+            # print_and_log(log_file_path, 'Validation rate: %2.5f+-%2.5f @ FAR=%2.5f' % (val, val_std, far))
 
-            auc = metrics.auc(fpr, tpr)
-            print_and_log(log_file_path, 'Area Under Curve (AUC): %1.3f' % auc)
+            # auc = metrics.auc(fpr, tpr)
+            # print_and_log(log_file_path, 'Area Under Curve (AUC): %1.3f' % auc)
 
             # eer = brentq(lambda x: 1. - x - interpolate.interp1d(fpr, tpr)(x), 0., 1.)
             # print('Equal Error Rate (EER): %1.3f' % eer)
@@ -248,27 +242,27 @@ def main():
 
     ####### Data setup
     print('Data directory: %s' % confi.data_dir)
-    train_loader, test_loader = get_data(confi, device)
-
+    train_loader, test_loader, evaluate_loader = get_data(confi, device)
+    print(len(train_loader), len(test_loader), len(evaluate_loader))
     ######## Validation Data setup
-    validation_paths_dic = {
-                    "LFW" : confi.lfw_dir,
-                    "CALFW" : confi.calfw_dir,
-                    "CPLFW" : confi.cplfw_dir,
-                    "CFP_FF" : confi.cfp_ff_dir,
-                    "CFP_FP" : confi.cfp_fp_dir
-                    }
-    print_and_log(log_file_path, "Validation_paths_dic: " + str(validation_paths_dic))
-    validation_data_dic = {}
-    for val_type in confi.validations:
-        print_and_log(log_file_path, 'Init dataset and loader for validation type: {}'.format(val_type))
-        dataset, loader = get_evaluate_dataset_and_loader(root_dir=validation_paths_dic[val_type], 
-                                                                type=val_type, 
-                                                                num_workers=confi.num_workers, 
-                                                                input_size=confi.input_size, 
-                                                                batch_size=confi.evaluate_batch_size)
-        validation_data_dic[val_type+'_dataset'] = dataset
-        validation_data_dic[val_type+'_loader'] = loader
+    # validation_paths_dic = {
+    #                 "LFW" : confi.lfw_dir,
+    #                 "CALFW" : confi.calfw_dir,
+    #                 "CPLFW" : confi.cplfw_dir,
+    #                 "CFP_FF" : confi.cfp_ff_dir,
+    #                 "CFP_FP" : confi.cfp_fp_dir
+    #                 }
+    # print_and_log(log_file_path, "Validation_paths_dic: " + str(validation_paths_dic))
+    # validation_data_dic = {}
+    # for val_type in confi.validations:
+    #     print_and_log(log_file_path, 'Init dataset and loader for validation type: {}'.format(val_type))
+    #     dataset, loader = get_evaluate_dataset_and_loader(root_dir=validation_paths_dic[val_type], 
+    #                                                             type=val_type, 
+    #                                                             num_workers=confi.num_workers, 
+    #                                                             input_size=confi.input_size, 
+    #                                                             batch_size=confi.evaluate_batch_size)
+    #     validation_data_dic[val_type+'_dataset'] = dataset
+    #     validation_data_dic[val_type+'_loader'] = loader
     
 
     ####### Model setup
@@ -361,9 +355,9 @@ def main():
         schedule_lr(confi, log_file_path, optimizer, epoch)
         logger.scalar_summary("lr", optimizer.param_groups[0]['lr'], epoch)
 
-        train(model, device, train_loader, total_loss, loss_criterion, optimizer, log_file_path, model_dir, logger, epoch)
-        test(model, device, test_loader, total_loss, loss_criterion, log_file_path, logger, epoch)
-        evaluate(validation_data_dic, model, device, log_file_path, logger, distance_metric, epoch)
+        # train(model, device, train_loader, total_loss, loss_criterion, optimizer, log_file_path, model_dir, logger, epoch)
+        # test(model, device, test_loader, total_loss, loss_criterion, log_file_path, logger, epoch)
+        # evaluate(model, device, evaluate_loader, total_loss, loss_criterion,log_file_path, logger, epoch)
 
 if __name__ == '__main__':
     main()
