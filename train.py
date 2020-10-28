@@ -100,11 +100,13 @@ def train( model, device, train_loader, total_loss, loss_criterion, optimizer, l
     logger.scalar_summary("loss", log_loss, epoch)
 
     time_for_epoch = int(time.time() - t)
-    print_and_log(log_file_path, 'Total time for epoch: {}'.format(timedelta(seconds=time_for_epoch)))
+    print('Total time for epoch: {}'.format(timedelta(seconds=time_for_epoch)))
+    # print_and_log(log_file_path, 'Total time for epoch: {}'.format(timedelta(seconds=time_for_epoch)))
 
     if epoch % confi.model_save_interval == 0 or epoch == confi.epochs:
         save_model(confi, confi.model_type, model_dir, model, log_file_path, epoch)
         save_model(confi, confi.criterion_type, model_dir, loss_criterion, log_file_path, epoch)
+     
 
 def test( model, device, test_loader, total_loss, loss_criterion, log_file_path, logger, epoch):
     if test_loader == None:
@@ -140,69 +142,52 @@ def test( model, device, test_loader, total_loss, loss_criterion, log_file_path,
                 
 
         accuracy = 100. * correct / len(test_loader.dataset)
-        log = '\nTest set:, Accuracy: {}/{} ({:.0f}%)\n'.format(
-            correct, len(test_loader.dataset),
-            accuracy)
-        print_and_log(log_file_path, log)
-
+        nonaccuracy = 100.0 - accuracy 
+        log = '\nTest set:, Accuracy: {}/{} ({:.0f}%)\n'.format(correct, len(test_loader.dataset),accuracy)
+        print(log)
+        log = '\t {} \t |'.format(epoch)+'({}-{}/{}) [(acc) {}% :(non acc) {}%] \t |'.format (correct,len(test_loader.dataset)- correct ,len(test_loader.dataset),accuracy, 100.0 - accuracy) 
+        # log = \t {} \t |'.format(1)+'({}-{}/{}) [(acc) {}% : (non acc){}%] \t |'.format (1,10000 - 1 ,10000,55, 45)
         logger.scalar_summary("accuracy", accuracy, epoch)
-
         time_for_test = int(time.time() - t)
-        print_and_log(log_file_path, 'Total time for test: {}'.format(timedelta(seconds=time_for_test)))
+        print(time_for_test)
+        print('Total time for test: {}'.format(timedelta(seconds=time_for_test)))
+        # print_and_log(log_file_path, 'Total time for test: {}'.format(timedelta(seconds=time_for_test)))
+        return log
 
-
-def evaluate( model, device, evaluate_loader, total_loss, loss_criterion,log_file_path, logger, epoch):
+def evaluate(validation_data_dic, model, device, log_file_path, logger, distance_metric, epoch):
     if epoch % confi.evaluate_interval == 0 or epoch == confi.epochs:
-        correct = 0
         embedding_size = confi.features_dim
-        print('\n\n evaluate processing ........')
-        t = time.time()
-        model.eval()
-        with torch.no_grad():
-            for dataset, target in evaluate_loader:
-                dataset, target = dataset.to(device), target.to(device)
-                feats = model(dataset)
 
-                if confi.criterion_type == 'arcface':
-                    logits = loss_criterion(feats, target)
-                    outputs = logits
-                elif confi.criterion_type == 'cosface':
-                    logits, _ = loss_criterion(feats, target)
-                    outputs = logits
-                elif confi.criterion_type == 'combined':
-                    logits = loss_criterion(feats, target)
-                    outputs = logits
-                elif confi.criterion_type == 'centerloss':
-                    _, outputs = loss_criterion(feats, target)
+        for val_type in confi.validations:
+            dataset = validation_data_dic[val_type+'_dataset']
+            loader = validation_data_dic[val_type+'_loader']
 
-                _, predicted = torch.max(outputs.data, 1)
-                correct += (predicted == target.data).sum()
+            model.eval()
+            t = time.time()
+            print('\n\nRunnning forward pass on {} images'.format(val_type))
 
-            
-                # tpr, fpr, accuracy, val, val_std, far = evaluate_forward_pass(model, 
-                #                                                             loader, 
-                #                                                             dataset, 
-                #                                                             embedding_size, 
-                #                                                             device,
-                #                                                             lfw_nrof_folds=confi.evaluate_nrof_folds, 
-                #                                                             distance_metric=distance_metric, 
-                #                                                             subtract_mean=confi.evaluate_subtract_mean)
-
-            accuracy = 100. * correct / len(evaluate_loader.dataset)
-            print_and_log(log_file_path, '\nEpoch: '+str(epoch))
-            print_and_log(log_file_path, 'Accuracy: %2.5f+-%2.5f' % (np.mean(accuracy), np.std(accuracy)))
+            tpr, fpr, accuracy, val, val_std, far = evaluate_forward_pass(model, 
+                                                                        loader, 
+                                                                        dataset, 
+                                                                        embedding_size, 
+                                                                        device,
+                                                                        lfw_nrof_folds=confi.evaluate_nrof_folds, 
+                                                                        distance_metric=distance_metric, 
+                                                                        subtract_mean=confi.evaluate_subtract_mean)
+            auc = metrics.auc(fpr, tpr)
+            log =  "(acc) %2.5f+-%2.5f "%(np.mean(accuracy),np.std(accuracy)) + '(AUC): %1.3f' % auc
+            print("Evaluate accuracy: " + log)
+            # print_and_log(log_file_path, '\nEpoch: '+str(epoch))
             # print_and_log(log_file_path, 'Validation rate: %2.5f+-%2.5f @ FAR=%2.5f' % (val, val_std, far))
-
-            # auc = metrics.auc(fpr, tpr)
+            
             # print_and_log(log_file_path, 'Area Under Curve (AUC): %1.3f' % auc)
-
             # eer = brentq(lambda x: 1. - x - interpolate.interp1d(fpr, tpr)(x), 0., 1.)
             # print('Equal Error Rate (EER): %1.3f' % eer)
-            time_for_val = int(time.time() - t)
-            print_and_log(log_file_path, 'Total time for {} evaluation: {}'.format(val_type, timedelta(seconds=time_for_val)))
-            print("\n")
+            # time_for_val = int(time.time() - t)
+            # print_and_log(log_file_path, 'Total time for {} evaluation: {}'.format(val_type, timedelta(seconds=time_for_val)))
                 
             logger.scalar_summary(val_type +"_accuracy", np.mean(accuracy), epoch)
+            return log
 
 
 def main():
@@ -212,7 +197,7 @@ def main():
     out_dir = os.path.join(os.path.expanduser(confi.out_dir), subdir)
     if not os.path.isdir(out_dir):  # Create the out directory if it doesn't exist
         os.makedirs(out_dir)
-    model_dir = os.path.join(os.path.expanduser(out_dir), 'model_save_weight')
+    model_dir = os.path.join(os.path.expanduser(out_dir), 'model')
     if not os.path.isdir(model_dir):  # Create the model directory if it doesn't exist
         os.makedirs(model_dir)
     tensorboard_dir = os.path.join(os.path.expanduser(out_dir), 'tensorboard')
@@ -226,7 +211,7 @@ def main():
     src_path,_ = os.path.split(os.path.realpath(__file__))
     store_revision_info(src_path, out_dir, ' '.join(sys.argv))
 
-    log_file_path = os.path.join(out_dir, 'training_log.txt')
+    log_file_path = os.path.join(out_dir, 'history_log.txt')
     logger = Logger(tensorboard_dir)
 
     ################### Pytorch: ###################
@@ -242,27 +227,22 @@ def main():
 
     ####### Data setup
     print('Data directory: %s' % confi.data_dir)
-    train_loader, test_loader, evaluate_loader = get_data(confi, device)
-    print(len(train_loader), len(test_loader), len(evaluate_loader))
+    train_loader, test_loader = get_data(confi, device)
+
     ######## Validation Data setup
-    # validation_paths_dic = {
-    #                 "LFW" : confi.lfw_dir,
-    #                 "CALFW" : confi.calfw_dir,
-    #                 "CPLFW" : confi.cplfw_dir,
-    #                 "CFP_FF" : confi.cfp_ff_dir,
-    #                 "CFP_FP" : confi.cfp_fp_dir
-    #                 }
-    # print_and_log(log_file_path, "Validation_paths_dic: " + str(validation_paths_dic))
-    # validation_data_dic = {}
-    # for val_type in confi.validations:
-    #     print_and_log(log_file_path, 'Init dataset and loader for validation type: {}'.format(val_type))
-    #     dataset, loader = get_evaluate_dataset_and_loader(root_dir=validation_paths_dic[val_type], 
-    #                                                             type=val_type, 
-    #                                                             num_workers=confi.num_workers, 
-    #                                                             input_size=confi.input_size, 
-    #                                                             batch_size=confi.evaluate_batch_size)
-    #     validation_data_dic[val_type+'_dataset'] = dataset
-    #     validation_data_dic[val_type+'_loader'] = loader
+    validation_paths_dic = {"LFW" : confi.lfw_dir}
+    print_and_log(log_file_path, "Validation_paths_dic: " + str(validation_paths_dic))
+    print_and_log(log_file_path, "Training_paths_dic: "   + str(confi.data_dir))
+    validation_data_dic = {}
+    for val_type in confi.validations:
+        print_and_log(log_file_path, 'Init dataset and loader for validation type: {}'.format(val_type))
+        dataset, loader = get_evaluate_dataset_and_loader(root_dir=validation_paths_dic[val_type], 
+                                                                type=val_type, 
+                                                                num_workers=confi.num_workers, 
+                                                                input_size=confi.input_size, 
+                                                                batch_size=confi.evaluate_batch_size)
+        validation_data_dic[val_type+'_dataset'] = dataset
+        validation_data_dic[val_type+'_loader'] = loader
     
 
     ####### Model setup
@@ -349,15 +329,16 @@ def main():
             )
         else:
             raise AssertionError('Unsuported apex_opt_level {}. We only support:  [0, 1, 2]'.format(confi.apex_opt_level))
-
-
+    print_and_log(log_file_path,"[" + str(datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S')) + "] ")
+    print_and_log(log_file_path,"---------------------------------------------------------------------------")
+    print_and_log(log_file_path, "\t Epoch \t |Test closeset \t \t \t \t | Evaluate openset \t \t \t") 
     for epoch in range(1, confi.epochs + 1):
         schedule_lr(confi, log_file_path, optimizer, epoch)
         logger.scalar_summary("lr", optimizer.param_groups[0]['lr'], epoch)
 
-        # train(model, device, train_loader, total_loss, loss_criterion, optimizer, log_file_path, model_dir, logger, epoch)
-        # test(model, device, test_loader, total_loss, loss_criterion, log_file_path, logger, epoch)
-        # evaluate(model, device, evaluate_loader, total_loss, loss_criterion,log_file_path, logger, epoch)
-
+        train(model, device, train_loader, total_loss, loss_criterion, optimizer, log_file_path, model_dir, logger, epoch)
+        log = test( model, device, test_loader, total_loss, loss_criterion, log_file_path, logger, epoch)
+        log1 = evaluate( validation_data_dic, model, device, log_file_path, logger, distance_metric, epoch)
+        print_and_log(log_file_path, log + log1)
 if __name__ == '__main__':
     main()

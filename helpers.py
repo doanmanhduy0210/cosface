@@ -57,13 +57,14 @@ def get_model(model_type, input_size):
 
 def save_model(ARGS, type, model_dir, model, log_file_path, epoch):
     save_path = os.path.join(model_dir, type + '_' + str(epoch) + '.pth')
-    print_and_log(log_file_path, "Saving Model path: " + str(save_path))
+    print( "Saving Model path: " + str(save_path))
     torch.save(model.state_dict(), save_path) 
     if ARGS.model_save_latest_path:
         if not os.path.isdir(ARGS.model_save_latest_path):  # Create the latest saved pth directory if it doesn't exist
             os.makedirs(ARGS.model_save_latest_path)
         latest_save_path = os.path.join(ARGS.model_save_latest_path, type + '_' + 'latest' + '.pth')
-        print_and_log(log_file_path, "Saving latest model: " + str(latest_save_path))
+        print("Saving latest model: " + str(latest_save_path))
+        # print_and_log(log_file_path, "Saving latest model: " + str(latest_save_path))
         torch.save(model.state_dict(), latest_save_path) 
 
 # def removePercentTaggedFile(tag, model_dir):
@@ -107,16 +108,15 @@ def store_revision_info(src_path, output_dir, arg_string):
 
 def print_and_log(log_file_path, string_to_write):
     print(string_to_write)
-    with open(log_file_path, "a") as log_file:
-        t = "[" + str(datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S')) + "] " 
-        log_file.write(t + string_to_write + "\n")
+    with open(log_file_path, "a") as log_file: 
+        log_file.write('\n ' + string_to_write )
 
 def schedule_lr(ARGS, log_file_path, optimizer, epoch):
     for lr_schedule_step in ARGS.lr_schedule_steps:
         if epoch == lr_schedule_step:
             for params in optimizer.param_groups:                 
                 params['lr'] *= ARGS.lr_gamma
-    print_and_log(log_file_path, "Learning rate: " + str(optimizer.param_groups[0]['lr']) + " Epoch: " + str(epoch))
+    print("Learning rate: " + str(optimizer.param_groups[0]['lr']) + " Epoch: " + str(epoch))
 
 ###################################################################
 ## Features Helpers

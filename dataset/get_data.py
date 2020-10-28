@@ -12,6 +12,8 @@ import sys
 
 from dataset.dataset_helpers import *
 from pdb import set_trace as bp
+import confi
+
 # from skimage import io, transform
 # import imageio
 
@@ -49,38 +51,37 @@ class FacesDataset(data.Dataset):
         return len(self.image_list)
 
 def get_data(ARGS, device):
-    dataset = get_dataset(ARGS.data_dir)
+    dataset = get_dataset(confi.data_dir)
 
-    if ARGS.validation_set_split_ratio == 0.0:
+    if confi.validation_set_split_ratio == 0.0:
         train_image_list, train_label_list, _ = get_image_paths_and_labels(dataset)
-        train_faces_dataset = FacesDataset(train_image_list, train_label_list, len(dataset), ARGS.input_size)
-        trainloader = data.DataLoader(train_faces_dataset, batch_size=ARGS.batch_size,
-                                                shuffle=True, num_workers=ARGS.num_workers)
+        train_faces_dataset = FacesDataset(train_image_list, train_label_list, len(dataset), confi.input_size)
+        trainloader = data.DataLoader(train_faces_dataset, batch_size=confi.batch_size,
+                                                shuffle=True, num_workers=confi.num_workers)
         return trainloader, None
 
-    train_data, evaluate_set = split_dataset(dataset, ARGS.evaluate_set_split_ratio, ARGS.min_nrof_val_images_per_class, 'SPLIT_IMAGES')
-    
-    train_set, val_set       =  split_dataset(train_data, ARGS.validation_set_split_ratio, ARGS.min_nrof_val_images_per_class, 'SPLIT_IMAGES')
+    train_data, test_set = split_dataset(dataset, confi.validation_set_split_ratio, confi.min_nrof_val_images_per_class, 'SPLIT_IMAGES')
+    # _, train_data = split_dataset(train_data, confi.validation_set_split_ratio, confi.min_nrof_val_images_per_class, 'SPLIT_IMAGES')
 
-    train_image_list, train_label_list, _ = get_image_paths_and_labels(train_set)
+    train_image_list, train_label_list, _ = get_image_paths_and_labels(train_data)
     print('len of labels training ' + str(len(train_label_list)))
-    val_image_list, val_label_list, _ = get_image_paths_and_labels(val_set)
+    val_image_list, val_label_list, _ = get_image_paths_and_labels(test_set)
     print('len of labels testing ' + str(len(val_label_list)))
-    eva_image_list, eva_label_list, _ = get_image_paths_and_labels(evaluate_set)
-    print('len of labels evaluating ' + str(len(eva_label_list)))
+    # eva_image_list, eva_label_list, _ = get_image_paths_and_labels(evaluate_set)
+    # print('len of labels evaluating ' + str(len(eva_label_list)))
 
-    train_faces_dataset = FacesDataset(train_image_list, train_label_list, len(train_set), ARGS.input_size)
-    test_faces_dataset  = FacesDataset(val_image_list, val_label_list, len(val_set), ARGS.input_size)
-    eval_faces_dataset  = FacesDataset(eva_image_list, eva_label_list, len(evaluate_set), ARGS.input_size)
+    train_faces_dataset = FacesDataset(train_image_list, train_label_list, len(train_data), confi.input_size)
+    test_faces_dataset  = FacesDataset(val_image_list, val_label_list, len(test_set), confi.input_size)
+    # eval_faces_dataset  = FacesDataset(eva_image_list, eva_label_list, len(evaluate_set), confi.input_size)
 
-    trainloader = data.DataLoader(train_faces_dataset, batch_size=ARGS.batch_size,
-                                                shuffle=True, num_workers=ARGS.num_workers)
-    testloader = data.DataLoader(test_faces_dataset, batch_size=ARGS.batch_size_test,
-                                                shuffle=False, num_workers=ARGS.num_workers)
-    evaluateloader = data.DataLoader(eval_faces_dataset, batch_size= ARGS.evaluate_batch_size, 
-                                                shuffle=True, num_workers = ARGS.num_workers)
+    trainloader = data.DataLoader(train_faces_dataset, batch_size=confi.batch_size,
+                                                shuffle=True, num_workers=confi.num_workers)
+    testloader = data.DataLoader(test_faces_dataset, batch_size=confi.batch_size_test,
+                                                shuffle=False, num_workers=confi.num_workers)
+    # evaluateloader = data.DataLoader(eval_faces_dataset, batch_size= confi.evaluate_batch_size, 
+    #                                             shuffle=True, num_workers = confi.num_workers)
     
-    return trainloader, testloader, evaluateloader
+    return trainloader, testloader
 
 
 # if __name__ == '__main__':
@@ -103,7 +104,7 @@ def get_data(ARGS, device):
 #             image_path = 'out_images/train/' + image_name + '.jpg'
 #             print("imageName: " + str(image_name))
 
-#             # # imageio style saving
+#             # # imageio style ing
 #             imageio.imwrite(image_path, (img * 255.).astype(np.uint8))
 #             train_image_count += 1
 #     print("\nTRAIN Images COUNT: " + str(train_image_count))
