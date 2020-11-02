@@ -140,19 +140,17 @@ def test( model, device, test_loader, total_loss, loss_criterion, log_file_path,
                 _, predicted = torch.max(outputs.data, 1)
                 correct += (predicted == target.data).sum()
                 
-
         accuracy = 100. * correct / len(test_loader.dataset)
-        nonaccuracy = 100.0 - accuracy 
-        log = '\nTest set:, Accuracy: {}/{} ({:.0f}%)\n'.format(correct, len(test_loader.dataset),accuracy)
-        print(log)
-        log = '\t {} \t |'.format(epoch)+'({}-{}/{}) [(acc) {}% :(non acc) {}%] \t |'.format (correct,len(test_loader.dataset)- correct ,len(test_loader.dataset),accuracy, 100.0 - accuracy) 
-        # log = \t {} \t |'.format(1)+'({}-{}/{}) [(acc) {}% : (non acc){}%] \t |'.format (1,10000 - 1 ,10000,55, 45)
+        nonaccuracy = 100.0*(len(test_loader.dataset) - correct)/(len(test_loader.dataset))  
+        print('\n Test set:, Accuracy: {}/{} ({:.0f}%)\n'.format(correct, len(test_loader.dataset),accuracy))
         logger.scalar_summary("accuracy", accuracy, epoch)
         time_for_test = int(time.time() - t)
-        print(time_for_test)
+        print( 'time for test: ' + str(time_for_test))
         print('Total time for test: {}'.format(timedelta(seconds=time_for_test)))
-        # print_and_log(log_file_path, 'Total time for test: {}'.format(timedelta(seconds=time_for_test)))
-        return log
+        log = '\t {} \t |'.format(epoch)+'({}-{}/{}) [(acc) {}% :(non acc) {}%] \t |'.format (correct,len(test_loader.dataset)- correct ,len(test_loader.dataset),accuracy, nonaccuracy)
+        print(log)
+        print_and_log(log_file_path,log)
+        print_and_log(log_file_path, 'Total time for test: {}'.format(timedelta(seconds=time_for_test)))
 
 def evaluate(validation_data_dic, model, device, log_file_path, logger, distance_metric, epoch):
     if epoch % confi.evaluate_interval == 0 or epoch == confi.epochs:
@@ -175,8 +173,10 @@ def evaluate(validation_data_dic, model, device, log_file_path, logger, distance
                                                                         distance_metric=distance_metric, 
                                                                         subtract_mean=confi.evaluate_subtract_mean)
             auc = metrics.auc(fpr, tpr)
-            log =  "(acc) %2.5f+-%2.5f "%(np.mean(accuracy),np.std(accuracy)) + '(AUC): %1.3f' % auc
-            print("Evaluate accuracy: " + log)
+            print("Evaluate accuracy: " + str(accuracy))
+            log = "(acc) %2.5f+-%2.5f "%(np.mean(accuracy),np.std(accuracy)) + '(AUC): %1.3f' % auc 
+            print(log)
+            print_and_log(log_file_path,log )
             # print_and_log(log_file_path, '\nEpoch: '+str(epoch))
             # print_and_log(log_file_path, 'Validation rate: %2.5f+-%2.5f @ FAR=%2.5f' % (val, val_std, far))
             
@@ -185,13 +185,13 @@ def evaluate(validation_data_dic, model, device, log_file_path, logger, distance
             # print('Equal Error Rate (EER): %1.3f' % eer)
             # time_for_val = int(time.time() - t)
             # print_and_log(log_file_path, 'Total time for {} evaluation: {}'.format(val_type, timedelta(seconds=time_for_val)))
-                
             logger.scalar_summary(val_type +"_accuracy", np.mean(accuracy), epoch)
-            return log
+            
 
 
 def main():
 
+    print('\n type of loss function: ' + str(confi.criterion_type))
     # Dirs
     subdir = datetime.strftime(datetime.now(), '%Y-%m-%d___%H-%M-%S')
     out_dir = os.path.join(os.path.expanduser(confi.out_dir), subdir)
@@ -331,14 +331,13 @@ def main():
             raise AssertionError('Unsuported apex_opt_level {}. We only support:  [0, 1, 2]'.format(confi.apex_opt_level))
     print_and_log(log_file_path,"[" + str(datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S')) + "] ")
     print_and_log(log_file_path,"---------------------------------------------------------------------------")
-    print_and_log(log_file_path, "\t Epoch \t |Test closeset \t \t \t \t | Evaluate openset \t \t \t") 
+    print_and_log(log_file_path, "\t Epoch \t |Test closeset Accuracy \t \t \t \t ") 
     for epoch in range(1, confi.epochs + 1):
         schedule_lr(confi, log_file_path, optimizer, epoch)
         logger.scalar_summary("lr", optimizer.param_groups[0]['lr'], epoch)
-
         train(model, device, train_loader, total_loss, loss_criterion, optimizer, log_file_path, model_dir, logger, epoch)
-        log = test( model, device, test_loader, total_loss, loss_criterion, log_file_path, logger, epoch)
-        log1 = evaluate( validation_data_dic, model, device, log_file_path, logger, distance_metric, epoch)
-        print_and_log(log_file_path, log + log1)
+        test( model, device, test_loader, total_loss, loss_criterion, log_file_path, logger, epoch)
+        # evaluate( validation_data_dic, model, device, log_file_path, logger, distance_metric, epoch)
+        
 if __name__ == '__main__':
     main()

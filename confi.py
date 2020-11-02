@@ -15,7 +15,7 @@ number_epoch_save_information = 10
 
 batch_size_test = 32
 evaluate_batch_size = 32
-validation_set_split_ratio = 0.25
+validation_set_split_ratio = 0.2
 evaluate_set_split_ratio   = 0
 min_nrof_val_images_per_class = 0
 # model 
@@ -42,7 +42,7 @@ margin_m1 = 0.2
 margin_m2 = 0.35
 apex_opt_level = 2 
 # intervals 
-test_interval = 5
+test_interval = 4
 evaluate_interval = 5
 model_save_interval = 5
 model_save_latest_path = None
@@ -60,9 +60,3 @@ cfp_fp_dir = '/mnt/cd4dcd96-78d7-474d-964f-304a16dbe014/duydm/codeGithub/cosface
 evaluate_subtract_mean = False
 evaluate_batch_size = 32
 evaluate_nrof_folds = 10
-
-
-
-
-
-

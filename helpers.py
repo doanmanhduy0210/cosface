@@ -109,7 +109,7 @@ def store_revision_info(src_path, output_dir, arg_string):
 def print_and_log(log_file_path, string_to_write):
     print(string_to_write)
     with open(log_file_path, "a") as log_file: 
-        log_file.write('\n ' + string_to_write )
+        log_file.write( '\n' + string_to_write )
 
 def schedule_lr(ARGS, log_file_path, optimizer, epoch):
     for lr_schedule_step in ARGS.lr_schedule_steps:
